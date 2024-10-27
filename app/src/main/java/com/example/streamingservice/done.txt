@@ -1,0 +1,17 @@
+1. thing are swipeable, long
+notes work, short ones in rows
+behave weird, deleting code works though
+
+2. you have a isDone bool variable
+
+3. deleting for long notes works
+
+Todo:
+*important* deleting the top one of the notes deletes every singular one, FIX
+1. implant deleting function for done notes,
+2. make timer for completely deleting notes in trash add sperrate function as well
+3. fix short notes deleting,
+4. implant scheduling,
+5. storing app data,
+6. acces global storage
+7.implant camera functionallity
