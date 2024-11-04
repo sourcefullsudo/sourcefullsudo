@@ -21,6 +21,9 @@ import com.google.firebase.database.getValue
 import com.google.firebase.database.ktx.database
 import com.google.firebase.database.values
 import com.google.firebase.ktx.Firebase
+import java.security.Key
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.EnumSet.range
 
 
@@ -30,6 +33,11 @@ class NotesViewModel : ViewModel() {
     val createNoteVisible: LiveData<Boolean> = _createNoteVisible
     val _IndicatorVisibility = MutableLiveData(true)
     val IndicatorVisibility: LiveData<Boolean> = _IndicatorVisibility
+
+    val date = Date() // current date and time
+    val formatter = SimpleDateFormat("HH:mm:ss") // format: hours:minutes:seconds
+    val localTimeStr = formatter.format(date)
+
     fun toggleVisibility() {
         _createNoteVisible.value = _createNoteVisible.value?.not()
     }
@@ -54,69 +62,90 @@ class NotesViewModel : ViewModel() {
     val Refrence1 =
         Firebase.database.getReferenceFromUrl("https://newproject-22c84-default-rtdb.europe-west1.firebasedatabase.app/notes")
 
-    val Reference2 =
-        Firebase.database.getReferenceFromUrl("https://newproject-22c84-default-rtdb.europe-west1.firebasedatabase.app/importantNotes")
+    val KeyRefrence1 =
+        Firebase.database.getReferenceFromUrl("https://newproject-22c84-default-rtdb.europe-west1.firebasedatabase.app/keys/notesKey")
 
-    val Reference3 =
+    var noteskey = 0
+
+    val Refrence2 =
+        Firebase.database.getReferenceFromUrl("https://newproject-22c84-default-rtdb.europe-west1.firebasedatabase.app/pinnedNotes")
+
+    val KeyRefrence2 =
+        Firebase.database.getReferenceFromUrl("https://newproject-22c84-default-rtdb.europe-west1.firebasedatabase.app/keys/importantNotesKey")
+
+    var pinnedNotesKey = 0
+
+    val Refrence3 =
         Firebase.database.getReferenceFromUrl("https://newproject-22c84-default-rtdb.europe-west1.firebasedatabase.app/deletedNotes")
 
-    val Reference4 =
-        Firebase.database.getReferenceFromUrl("https://newproject-22c84-default-rtdb.europe-west1.firebasedatabase.app/doneNotes")
+    val KeyRefrence3 =
+        Firebase.database.getReferenceFromUrl("https://newproject-22c84-default-rtdb.europe-west1.firebasedatabase.app/deletedNotes")
 
-    fun WriteData(
-        FunctionExecuted: Int
-    ) {
-        Log.i("function executed", "writing data")
-        //fixed it, now note is not null anymore and it crashes
-        //TODO: convert list into accepted format to save to RTDB on firebase
+    val deletedNotesKey = 0
 
+    fun storeKey() {
+        Log.i("key.current", noteskey.toString())
+        KeyRefrence1.child("note").setValue(noteskey)
+        noteskey += 1
+    }
 
-        fun writeToNote() {
-            var key = 0
-            for (i in notes.indices) {
-                key = key + 1
-                Log.i("notesVar iterator", i.toString())
-                Refrence1.child(key.toString()).setValue(notes[i])
+    fun readKey() {
+        Log.i("reading key", localTimeStr)
+
+        KeyRefrence1.addValueEventListener(object : ValueEventListener {
+
+            override fun onDataChange(snapshot: DataSnapshot) {
+                // This method is called once with the initial value and again
+                // whenever data at this location is updated.
+                val value = snapshot.getValue<Any>()
+                Log.d("read key data", "key" + value)
             }
-        }
 
-        fun writeToImportantNotes() {
-            var key = 0
-            for (i in importantNotes.indices) {
-                key = key + 1
-                Log.i("ImportantNotesVar iterator", i.toString())
-                Reference2.child(key.toString()).setValue(importantNotes[i])
+            override fun onCancelled(error: DatabaseError) {
+                Log.w(TAG, "Failed to get key, error.toException()")
             }
-        }
 
-        fun writeToDeletedNotes() {
-            var key = 0
-            for (i in deletedNotes.indices) {
-                key = key + 1
-                Log.i("deletedNotesVar iterator", i.toString())
-                Reference3.child(key.toString()).setValue(deletedNotes[i])
-            }
-        }
+        })
+    }
 
-        fun writeToDoneNotes() {
-            var key = 0
-            for (i in doneNotes.indices) {
-                key = key + 1
-                Log.i("doneNotesVar iterator", i.toString())
-                Reference4.child(key.toString()).setValue(doneNotes[i])
-            }
-        }
+    fun writeToNote(string: String) {
+        Log.i("writing", "writing notes ${string}")
+        Refrence1.child(noteskey.toString()).setValue(string)
+        storeKey()
+    }
 
+    fun removeFromNote(index: Int) {
+        Log.i("removing value", index.toString())
+        Refrence1.child(index.toString()).removeValue()
+    }
 
-        when (FunctionExecuted) {
-            0 -> writeToNote()
-            1 -> writeToImportantNotes()
-            2 -> writeToDeletedNotes()
-            3 -> writeToDoneNotes()
-            else -> {
-                Log.i("writing failure", "no function to execute at index ${FunctionExecuted}")
-            }
-        }
+    //IMPORTANT NOTES
+
+    fun writeToImportantNotes(string: String) {
+        Log.i("writing", "writing notes ${string}")
+        Refrence1.child(pinnedNotesKey.toString()).setValue(string)
+        storeKey()
+    }
+
+    fun removeFromImportantNote(index: Int) {
+        Refrence2.child(index.toString()).removeValue()
+    }
+
+    // DELETED NOTES
+    fun writeToDeletedNotes(string: String) {
+        Log.i("writing to deleted notes", string)
+    }
+
+    fun removeFromDeletedNote(index: Int) {
+        Refrence3.child(index.toString()).removeValue()
+    }
+
+    //DONE NOTES
+
+    fun writeToDoneNotes() {
+        Log.i("writing", "writing done notes ${doneNotes.toList()}")
+        Refrence1.child("doneNotes").setValue(doneNotes)
+
     }
 
     fun ReadData() {

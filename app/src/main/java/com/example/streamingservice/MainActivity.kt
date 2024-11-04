@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
@@ -76,6 +77,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -110,22 +112,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         auth = Firebase.auth
-        auth.signInAnonymously()
-            .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    // Sign in success, update UI with the signed-in user's information
-                    Log.d(TAG, "signInAnonymously:success")
-                    val user = auth.currentUser
-                } else {
-                    // If sign in fails, display a message to the user.
-                    Log.w(TAG, "signInAnonymously:failure", task.exception)
-                    Toast.makeText(
-                        baseContext,
-                        "Authentication failed.",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
+        auth.signInAnonymously().addOnCompleteListener(this) { task ->
+            if (task.isSuccessful) {
+                // Sign in success, update UI with the signed-in user's information
+                Log.d(TAG, "signInAnonymously:success")
+                val user = auth.currentUser
+            } else {
+                // If sign in fails, display a message to the user.
+                Log.w(TAG, "signInAnonymously:failure", task.exception)
+                Toast.makeText(
+                    baseContext,
+                    "Authentication failed.",
+                    Toast.LENGTH_SHORT,
+                ).show()
             }
+        }
         enableEdgeToEdge()
         setContent {
             StreamingServiceTheme {
@@ -139,6 +140,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 //global variables
 
 val maxCharacters = 20
@@ -147,18 +149,13 @@ var sections = listOf(1)
 
 //function called onCreate containing all other gui functions
 
-@OptIn(ExperimentalFoundationApi::class)
-fun calculateScrollPercentage(pagerState: PagerState): Float {
-    val currentPageOffset = pagerState.currentPageOffsetFraction
-    val currentPage = pagerState.currentPage
-    val totalPages = pagerState.pageCount
 
-    return ((currentPage + currentPageOffset) / (totalPages - 1)) * 100
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
+
+    notesViewModel.readKey()
 
     // Obligatoric functions, var and logic
 
@@ -184,7 +181,6 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
 
     HorizontalPager(
         state = pagerState, modifier = Modifier.fillMaxSize()
-
     ) { page ->
         // Define content for each page
         when (page) {
@@ -219,7 +215,6 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
         var AppBarVisibility by remember {
             mutableStateOf(true)
         }
-// TODO: the button is appearing but somehow instantly set to false again and the visibility for the app bar is instantly set to true again, theory: the if statement for the direction checking is not stopping executing
         val state = rememberSwipeToDismissBoxState()
         val IndicatorVisibility by notesViewModel.IndicatorVisibility.observeAsState(true)
         //val TrashIndicatorVisibility by notesViewModel.TrashIndicatorVisibility.observeAsState(true)
@@ -244,15 +239,12 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
                     FloatingActionButton(
                         modifier = Modifier
                             .align(Alignment.Bottom)
-                            .padding(12.dp),
-                        onClick = {
+                            .padding(12.dp), onClick = {
                             notesViewModel.toggleVisibility()
                             scope.launch {
                                 ScrollToPage(1)
                             }
-                        },
-                        containerColor = Color.Yellow,
-                        contentColor = Color.Black
+                        }, containerColor = Color.Yellow, contentColor = Color.Black
                     ) {
                         Icon(Icons.Filled.Add, "add note")
                     }
@@ -261,49 +253,39 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
         }
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             AnimatedVisibility(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter),
+                modifier = Modifier.align(Alignment.BottomCenter),
                 visible = AppBarVisibility,
                 enter = fadeIn() + expandHorizontally() + scaleIn(),
                 exit = fadeOut() + slideOutHorizontally(targetOffsetX = { it / 2 }) + scaleOut()
             ) {
 
 
-                Box(
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .clip(RoundedCornerShape(25.dp))
-                        .background(Color.Black)
-                        .fillMaxWidth()
-                        .height(100.dp)
-                        .align(Alignment.BottomCenter)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onDoubleTap = {
-                                    AppBarVisibility = false
-                                    Log.d(
-                                        "AppBar Visibility long press",
-                                        AppBarVisibility.toString()
-                                    )
-                                    Log.d("Long press", "True")
-                                }
+                Box(modifier = Modifier
+                    .padding(12.dp)
+                    .clip(RoundedCornerShape(25.dp))
+                    .background(Color.Black)
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .align(Alignment.BottomCenter)
+                    .pointerInput(Unit) {
+                        detectTapGestures(onDoubleTap = {
+                            AppBarVisibility = false
+                            Log.d(
+                                "AppBar Visibility long press", AppBarVisibility.toString()
                             )
-                        }
-                ) {
+                            Log.d("Long press", "True")
+                        })
+                    }) {
                     FloatingActionButton(
-                        modifier = Modifier.align(Alignment.Center),
-                        onClick = {
+                        modifier = Modifier.align(Alignment.Center), onClick = {
                             notesViewModel.toggleVisibility()
                             scope.launch {
                                 ScrollToPage(1)
                             }
-                        },
-                        containerColor = Color.Yellow,
-                        contentColor = Color.Black
+                        }, containerColor = Color.Yellow, contentColor = Color.Black
                     ) {
                         Icon(Icons.Filled.Add, "add note")
                     }
@@ -322,10 +304,7 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
                                     .width(50.dp)
                                     .align(Alignment.BottomCenter)
                                     .padding(
-                                        top = 5.dp,
-                                        start = 4.dp,
-                                        bottom = 10.dp,
-                                        end = 4.dp
+                                        top = 5.dp, start = 4.dp, bottom = 10.dp, end = 4.dp
                                     )
                                     .clip(shape = RoundedCornerShape(12.dp)),
                                 color = Color.Yellow,
@@ -388,8 +367,7 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
                             .align(Alignment.CenterEnd)
                             .padding(end = 50.dp)
                             .background(
-                                backgroundColorPageNavigation,
-                                shape = RoundedCornerShape(20.dp)
+                                backgroundColorPageNavigation, shape = RoundedCornerShape(20.dp)
                             )
                             .size(70.dp)
                     ) {
@@ -397,16 +375,17 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
 
 
                             Icon(
-                                Icons.Filled.Favorite,
+                                Icons.Filled.Info,
                                 "Important",
                                 tint = Color.Yellow,
                                 modifier = Modifier.align(Alignment.CenterHorizontally)
                             )
                             Text(
-                                "_404_",
+                                "Pinned",
                                 color = Color.White,
                                 fontSize = 12.sp,
                                 modifier = Modifier
+                                    .padding(start = 4.dp)
                                     .align(Alignment.CenterHorizontally)
                                     .fillMaxWidth()
                             )
@@ -468,10 +447,7 @@ fun AddNoteScreen(modifier: Modifier, viewModel: NotesViewModel = viewModel()) {
 
 
     AnimatedVisibility(
-        modifier = Modifier,
-        visible = createNoteVisible,
-        enter = fadeIn(),
-        exit = fadeOut()
+        modifier = Modifier, visible = createNoteVisible, enter = fadeIn(), exit = fadeOut()
     ) {
         Box(
             modifier = Modifier
@@ -486,8 +462,7 @@ fun AddNoteScreen(modifier: Modifier, viewModel: NotesViewModel = viewModel()) {
     ) {
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             Box(
                 modifier = Modifier
@@ -502,19 +477,16 @@ fun AddNoteScreen(modifier: Modifier, viewModel: NotesViewModel = viewModel()) {
                     .padding(
                         top = 60.dp, bottom = 55.dp, end = 12.dp, start = 12.dp
                     )
-                    .fillMaxSize(),
-                    colors = TextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedContainerColor = Color.Transparent,
-                        cursorColor = Color.Yellow,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
+                    .fillMaxSize(), colors = TextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedContainerColor = Color.Transparent,
+                    cursorColor = Color.Yellow,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
 
-                    ),
-                    value = newNote,
-                    onValueChange = { currentNote -> newNote = currentNote })
+                ), value = newNote, onValueChange = { currentNote -> newNote = currentNote })
                 Text(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -528,16 +500,16 @@ fun AddNoteScreen(modifier: Modifier, viewModel: NotesViewModel = viewModel()) {
                         .align(Alignment.BottomEnd)
                         .padding(12.dp),
                     onClick = {
-
+                        //add a new note
                         if (newNote != "") {
                             Firebase.analytics.logEvent("note_added", null)
                             viewModel.toggleVisibility()
                             notes += newNote
-                            newNote = ""
                             Log.i("note added", viewModel.notes.toString())
                             //write data after newNote has been added to notes list
-                            viewModel.WriteData(FunctionExecuted = 0)
+                            viewModel.writeToNote(newNote)
                             viewModel.ReadData()
+                            newNote = ""
                         }
                     }) {
                     Icon(Icons.Filled.Done, "Done", tint = buttonColor)
@@ -614,35 +586,44 @@ fun PinnedNotes(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()
                     nestedScrollConnection
                 )
             ) {
+                items(1) {
+                    if (importantNotes.size > 0) {
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "Important notes",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 40.dp, bottom = 12.dp)
+                            )
+                        }
+                    }
+                }
 
                 sections.forEach { section ->
                     //Pinned short
                     items(rowCounter) {
                         ImportantchunkedShortNotes.forEach { chunk ->
                             Row(
-                                modifier = Modifier
-                                    .padding(8.dp)
+                                modifier = Modifier.padding(8.dp)
                             ) {
                                 chunk.forEach { note ->
                                     val state = rememberSwipeToDismissBoxState()
                                     var BackgroundText by remember {
                                         mutableStateOf<String>("")
                                     }
-                                    //TODO this is being executed as many times as there are items in the list, which is the reason they are all getting deleted. move out ov .foreach function and make state variable global
+                                    //delete Important note
                                     if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
                                         notesViewModel.importantNotes.remove(note)
                                         notesViewModel.deletedNotes.add(note)
                                         BackgroundText = "Delete"
-                                        notesViewModel.WriteData(FunctionExecuted = 2)
-                                        notesViewModel.ReadData()
                                     }
+                                    //unpin important note
                                     if (state.currentValue == SwipeToDismissBoxValue.StartToEnd) {
                                         notesViewModel.notes.add(note)
                                         notesViewModel.importantNotes.remove(note)
-                                        BackgroundText =
-                                            "Unpin"
-                                        notesViewModel.WriteData(FunctionExecuted = 1)
-                                        notesViewModel.ReadData()
+                                        BackgroundText = "Unpin"
                                     }
 
                                     SwipeToDismissBox(
@@ -682,20 +663,20 @@ fun PinnedNotes(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()
                             state = state,
                             backgroundContent = {},
                         ) {
+                            //delete important note
                             if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
                                 notesViewModel.deletedNotes.add(it)
                                 notesViewModel.importantNotes.remove(it)
 
                             }
+                            //unpin important note
                             if (state.currentValue == SwipeToDismissBoxValue.StartToEnd) {
                                 notesViewModel.notes.add(it)
                                 notesViewModel.importantNotes.remove(it)
                             }
 
                             val borderColor by animateColorAsState(
-                                targetValue = if (
-                                    state.currentValue == SwipeToDismissBoxValue.EndToStart
-                                ) Color.Red else Color.Yellow
+                                targetValue = if (state.currentValue == SwipeToDismissBoxValue.EndToStart) Color.Red else Color.Yellow
                             )
                             NoteUi(
                                 CornerRadius = 25.dp,
@@ -710,6 +691,8 @@ fun PinnedNotes(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()
 
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -790,29 +773,37 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
                     items(rowCounter) {
                         ChunkedShortNotes.forEach { chunk ->
                             Row(
-                                modifier = Modifier
-                                    .padding(8.dp)
+                                modifier = Modifier.padding(8.dp)
                             ) {
                                 chunk.forEach { note ->
                                     val state = rememberSwipeToDismissBoxState()
                                     var BackgroundText by remember {
                                         mutableStateOf<String>("")
                                     }
-                                    //TODO this is being executed as many times as there are items in the list, which is the reason they are all getting deleted. move out ov .foreach function and make state variable global
+                                    //delete short note
                                     if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
+                                        Log.i("delete::note", note)
                                         notes.remove(note)
                                         notesViewModel.deletedNotes.add(note)
                                         Log.i(
-                                            "current list state <notes>",
-                                            notes.toList().toString()
+                                            "current list state <notes>", notes.toList().toString()
                                         )
                                         BackgroundText = "The note will be moved to trash"
+                                        notesViewModel.writeToDeletedNotes(string = note)
+                                        Log.i(
+                                            "index ${note}",
+                                            notesViewModel.notes.indexOf(note).toString()
+                                        )
+                                        findIndex(Object=note, array = notesViewModel.notes)
+                                        notesViewModel.removeFromNote(
+                                        index= objectIndex
+                                        )
                                     }
+                                    //pin short note
                                     if (state.currentValue == SwipeToDismissBoxValue.StartToEnd) {
                                         notesViewModel.importantNotes.add(note)
                                         notes.remove(note)
-                                        BackgroundText =
-                                            "The note will be moved to important"
+                                        BackgroundText = "The note will be mov  ed to important"
                                     }
 
                                     SwipeToDismissBox(
@@ -854,20 +845,27 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
                                 state = state,
                                 backgroundContent = {},
                             ) {
+                                //delete long note
                                 if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
                                     notesViewModel.deletedNotes.add(it)
                                     notesViewModel.notes.remove(it)
-
+                                    Log.i("executing", "swipe to delete")
+                                    notesViewModel.writeToDeletedNotes(string = it)
+                                    notesViewModel.removeFromNote(
+                                        index = notesViewModel.notes.indexOf(
+                                            it
+                                        )
+                                    )
                                 }
+                                //pin long note
                                 if (state.currentValue == SwipeToDismissBoxValue.StartToEnd) {
                                     notesViewModel.importantNotes.add(it)
                                     notesViewModel.notes.remove(it)
+
                                 }
 
                                 val borderColor by animateColorAsState(
-                                    targetValue = if (
-                                        state.currentValue == SwipeToDismissBoxValue.EndToStart
-                                    ) Color.Red else Color.Yellow
+                                    targetValue = if (state.currentValue == SwipeToDismissBoxValue.EndToStart) Color.Red else Color.Yellow
                                 )
                                 NoteUi(
                                     CornerRadius = 25.dp,
@@ -939,9 +937,7 @@ fun NoteUi(CornerRadius: Dp, modifier: Modifier, note: String) {
             .padding(8.dp)
             .fillMaxWidth()
             .border(
-                2.dp,
-                color = Color.Yellow,
-                shape = RoundedCornerShape(CornerRadius)
+                2.dp, color = Color.Yellow, shape = RoundedCornerShape(CornerRadius)
             )
     ) {
         //SwipeToDismissBox(state = state, backgroundContent = {}) {
@@ -1034,9 +1030,7 @@ fun Trash(notesViewModel: NotesViewModel = viewModel()) {
                 }
                 items(deletedNotes) {
                     NoteUi(
-                        CornerRadius = 15.dp,
-                        modifier = Modifier.wrapContentSize(),
-                        note = it
+                        CornerRadius = 15.dp, modifier = Modifier.wrapContentSize(), note = it
                     )
                 }
             }
@@ -1044,8 +1038,5 @@ fun Trash(notesViewModel: NotesViewModel = viewModel()) {
     }
 }
 
-val date = Date() // current date and time
-val formatter = SimpleDateFormat("HH:mm:ss") // format: hours:minutes:seconds
-val localTimeStr = formatter.format(date)
 
 
