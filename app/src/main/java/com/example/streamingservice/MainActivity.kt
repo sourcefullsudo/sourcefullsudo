@@ -12,7 +12,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -25,6 +24,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,7 +39,6 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,7 +47,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.ButtonColors
@@ -77,7 +75,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -101,13 +98,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
+
+var ApplicationStarted = true
 
 val nestedScrollConnection = object : NestedScrollConnection {}
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
     private lateinit var auth: FirebaseAuth
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,7 +112,6 @@ class MainActivity : ComponentActivity() {
             if (task.isSuccessful) {
                 // Sign in success, update UI with the signed-in user's information
                 Log.d(TAG, "signInAnonymously:success")
-                val user = auth.currentUser
             } else {
                 // If sign in fails, display a message to the user.
                 Log.w(TAG, "signInAnonymously:failure", task.exception)
@@ -127,8 +122,13 @@ class MainActivity : ComponentActivity() {
                 ).show()
             }
         }
+        fun callFunctions(notesViewModel: NotesViewModel) {
+            notesViewModel.ReadData(Refrence = notesViewModel.Refrence1)
+            notesViewModel.readKey()
+        }
         enableEdgeToEdge()
         setContent {
+            callFunctions(notesViewModel = viewModel())
             StreamingServiceTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     NotesOverview(
@@ -150,12 +150,10 @@ var sections = listOf(1)
 //function called onCreate containing all other gui functions
 
 
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
 
-    notesViewModel.readKey()
 
     // Obligatoric functions, var and logic
 
@@ -266,7 +264,7 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
                 Box(modifier = Modifier
                     .padding(12.dp)
                     .clip(RoundedCornerShape(25.dp))
-                    .background(Color.Black)
+                    .background(if (isSystemInDarkTheme()) Color.Black else Color.White)
                     .fillMaxWidth()
                     .height(100.dp)
                     .align(Alignment.BottomCenter)
@@ -440,7 +438,7 @@ fun SickyHeader1(text: String) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AddNoteScreen(modifier: Modifier, viewModel: NotesViewModel = viewModel()) {
-    var notes = viewModel.notes
+    val notes = viewModel.notes
     var newNote by remember { mutableStateOf("") }
     val createNoteVisible by viewModel.createNoteVisible.observeAsState(true)
     var buttonColor by remember { mutableStateOf(Color.Yellow) }
@@ -508,7 +506,6 @@ fun AddNoteScreen(modifier: Modifier, viewModel: NotesViewModel = viewModel()) {
                             Log.i("note added", viewModel.notes.toString())
                             //write data after newNote has been added to notes list
                             viewModel.writeToNote(newNote)
-                            viewModel.ReadData()
                             newNote = ""
                         }
                     }) {
@@ -556,14 +553,14 @@ fun AddNoteScreen(modifier: Modifier, viewModel: NotesViewModel = viewModel()) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PinnedNotes(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
-    var textVisibility by remember {
+    val textVisibility by remember {
         mutableStateOf(false)
     }
 
-    var importantNotes = notesViewModel.importantNotes
-    var ImportantshortNotes = importantNotes.filter { it.length < maxCharacters }
-    var ImportantlongNote = importantNotes.filter { it.length > maxCharacters }
-    var ImportantchunkedShortNotes = ImportantshortNotes.chunked(2)
+    val importantNotes = notesViewModel.importantNotes
+    val ImportantshortNotes = importantNotes.filter { it.length < maxCharacters }
+    val ImportantlongNote = importantNotes.filter { it.length > maxCharacters }
+    val ImportantchunkedShortNotes = ImportantshortNotes.chunked(2)
     Box() {
         Box(
             modifier = Modifier
@@ -693,7 +690,6 @@ fun PinnedNotes(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()
 }
 
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
@@ -702,11 +698,11 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
         mutableStateOf(true)
     }
 
-    var doneNotes = notesViewModel.doneNotes
-    var shortDoneNotes = doneNotes.filter { it.length < maxCharacters }
-    var longDoneNote = doneNotes.filter { it.length > maxCharacters }
-    var chunkedShortDoneNotes = shortDoneNotes.chunked(2)
-    var notes = notesViewModel.notes
+    val doneNotes = notesViewModel.doneNotes
+    val shortDoneNotes = doneNotes.filter { it.length < maxCharacters }
+    val longDoneNote = doneNotes.filter { it.length > maxCharacters }
+    val chunkedShortDoneNotes = shortDoneNotes.chunked(2)
+    val notes = notesViewModel.notes
     val shortNote = notes.filter { it.length < maxCharacters }
     val longNote = notes.filter { it.length > maxCharacters }
     Log.i("vartype", shortNote.toString())
@@ -716,11 +712,7 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
     var textVisibility by remember {
         mutableStateOf(false)
     }
-    var _ifStatementCount = listOf(1)
 
-    var OffsetX by rememberSaveable {
-        mutableStateOf(0f)
-    }
     if (doneNotes.size != 0) {
         doneStickyHeaderVisibility = true
     }
@@ -782,6 +774,11 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
                                     }
                                     //delete short note
                                     if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
+                                        for ((index, value) in notesViewModel.notes.withIndex()) {
+                                            if (value == note) {
+                                                objectIndex = index
+                                            }
+                                        }
                                         Log.i("delete::note", note)
                                         notes.remove(note)
                                         notesViewModel.deletedNotes.add(note)
@@ -794,9 +791,8 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
                                             "index ${note}",
                                             notesViewModel.notes.indexOf(note).toString()
                                         )
-                                        findIndex(Object=note, array = notesViewModel.notes)
                                         notesViewModel.removeFromNote(
-                                        index= objectIndex
+                                            index = objectIndex
                                         )
                                     }
                                     //pin short note
@@ -961,7 +957,7 @@ fun NoteUi(CornerRadius: Dp, modifier: Modifier, note: String) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Trash(notesViewModel: NotesViewModel = viewModel()) {
-    var deletedNotes = notesViewModel.deletedNotes
+    val deletedNotes = notesViewModel.deletedNotes
 
     if (deletedNotes.size == 0) {
 

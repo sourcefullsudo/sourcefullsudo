@@ -2,6 +2,7 @@ import android.app.Application
 import android.content.ContentValues.TAG
 import android.content.Context
 import android.util.Log
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.mutableStateListOf
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import androidx.datastore.preferences.core.edit
+import com.example.streamingservice.ApplicationStarted
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
@@ -22,6 +24,7 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.database.values
 import com.google.firebase.ktx.Firebase
 import java.security.Key
+import java.text.DateFormat.getDateInstance
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.EnumSet.range
@@ -35,7 +38,7 @@ class NotesViewModel : ViewModel() {
     val IndicatorVisibility: LiveData<Boolean> = _IndicatorVisibility
 
     val date = Date() // current date and time
-    val formatter = SimpleDateFormat("HH:mm:ss") // format: hours:minutes:seconds
+    val formatter = getDateInstance()
     val localTimeStr = formatter.format(date)
 
     fun toggleVisibility() {
@@ -97,12 +100,27 @@ class NotesViewModel : ViewModel() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 // This method is called once with the initial value and again
                 // whenever data at this location is updated.
-                val value = snapshot.getValue<Any>()
-                Log.d("read key data", "key" + value)
+                var value = 0
+                for (i in snapshot.getValue<Any>().toString().toList()) {
+                    Log.i("key data", i.toString())
+                    if (i.isDigit()) {
+                        value = i.digitToInt()
+                        break
+                    }
+                }
+                Log.d("read key data", value.toString())
+                if (ApplicationStarted) {
+                    value += 1
+                    noteskey = value
+                    ApplicationStarted = false
+                    Log.i("getting key (on start event)", value.toString())
+                } else {
+                    Log.i("backup Read", value.toString())
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.w(TAG, "Failed to get key, error.toException()")
+                Log.w(TAG, "Failed to get key.", error.toException())
             }
 
         })
@@ -148,16 +166,26 @@ class NotesViewModel : ViewModel() {
 
     }
 
-    fun ReadData() {
+
+    fun ReadData(Refrence: DatabaseReference) {
         Log.d("ReadData", "function is being executed")
         // Read from the database
-        Refrence1.addValueEventListener(object : ValueEventListener {
+        Refrence.addValueEventListener(object : ValueEventListener {
 
             override fun onDataChange(snapshot: DataSnapshot) {
                 // This method is called once with the initial value and again
                 // whenever data at this location is updated.
-                val value = snapshot.getValue<Any>()
-                Log.d("read data", "Value is: " + value)
+                for (childSnapshot in snapshot.children) {
+                    val value = childSnapshot.getValue<Any>()
+                    if (value != null) {
+                        notes.add(value.toString()) // Add the retrieved value to the list
+                        Log.i("retrieved value", value.toString())
+                    }
+                }
+
+                Log.i("data Snapshot", snapshot.children.toString())
+                var value = snapshot.getValue<Any>()
+                Log.d("read data for notes", value.toString())
                 Log.d("onDataChange", "function is being executed")
             }
 
