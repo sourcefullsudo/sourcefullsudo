@@ -64,6 +64,7 @@ dependencies {
     implementation("androidx.compose.runtime:runtime-livedata:1.7.2")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
+    implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth-ktx:23.1.0")
     implementation(libs.androidx.room.common)

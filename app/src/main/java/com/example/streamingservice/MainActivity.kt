@@ -66,11 +66,12 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,28 +88,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.streamingservice.ui.theme.StreamingServiceTheme
-import com.example.streamingservice.ui.theme.cardColor
 import com.example.streamingservice.ui.theme.addNoteScreenBackgroundColor
-import com.google.firebase.analytics.ktx.analytics
+import com.example.streamingservice.ui.theme.cardColor
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.ktx.initialize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-var ApplicationStarted = true
+
+val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
 val nestedScrollConnection = object : NestedScrollConnection {}
 
 class MainActivity : ComponentActivity() {
     private lateinit var auth: FirebaseAuth
     override fun onCreate(savedInstanceState: Bundle?) {
+        fun callBackendManagement(backendManagement: BackendManagement) {
+            backendManagement.Routine(NotesViewModel())
+        }
+        callBackendManagement(BackendManagement())
         super.onCreate(savedInstanceState)
-        auth = Firebase.auth
-        auth.signInAnonymously().addOnCompleteListener(this) { task ->
+        auth = FirebaseAuth.getInstance()
+        Firebase.initialize(this)
+        Firebase.auth.signInAnonymously().addOnCompleteListener(this) { task ->
             if (task.isSuccessful) {
                 // Sign in success, update UI with the signed-in user's information
                 Log.d(TAG, "signInAnonymously:success")
@@ -122,14 +130,20 @@ class MainActivity : ComponentActivity() {
                 ).show()
             }
         }
-        fun callFunctions(notesViewModel: NotesViewModel) {
-            notesViewModel.ReadData(Refrence = notesViewModel.Refrence1)
-            notesViewModel.readKey()
+        fun getUserID(backendManagement: BackendManagement) {
+            val user = auth.currentUser
+            if (user != null) {
+                user.uid
+                Log.i("auth", "user uid: ${user.uid}")
+            } else {
+            Log.w("auth", "no user signed in")
+            }
         }
+        getUserID(BackendManagement())
         enableEdgeToEdge()
         setContent {
-            callFunctions(notesViewModel = viewModel())
             StreamingServiceTheme {
+                ObserverNotes()
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     NotesOverview(
                         modifier = Modifier.padding(innerPadding),
@@ -140,20 +154,36 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
 //global variables
 
 val maxCharacters = 20
 var rowCounter = 1
 var sections = listOf(1)
 
+@Composable
+fun ObserverNotes(
+    notesViewModel: NotesViewModel = viewModel(),
+    backendManagement: BackendManagement = BackendManagement()
+) {
+    val derivedNotes = remember { derivedStateOf { notesViewModel.notes.toList() } }
+    LaunchedEffect(derivedNotes.value) {
+        backendManagement.Routine(NotesViewModel())
+        Log.i(
+            "state", "Notes changed: ${derivedNotes.value}"
+        )
+    }
+}
+
 //function called onCreate containing all other gui functions
 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
-
+fun NotesOverview(
+    modifier: Modifier,
+    notesViewModel: NotesViewModel = viewModel(),
+    BackendManagementStart: BackendManagement = BackendManagement()
+) {
 
     // Obligatoric functions, var and logic
 
@@ -162,20 +192,16 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
     }
 
     val pagerState = rememberPagerState(pageCount = { 3 })
-    val scrollPercentage = calculateScrollPercentage(pagerState)
-    Log.i("scrollPercentage var type", scrollPercentage::class.simpleName.toString())
+    val scrollPercentage = notesViewModel.calculateScrollPercentage(pagerState)
+
 
     if (isInRange(scrollPercentage, 25..75)) {
         notesViewModel.toggleIndicatorAppeareance()
-        Log.i("condition", "true")
     } else {
         notesViewModel.toggleIndicatorDisappeareance()
-        Log.i("condition2", "false")
     }
 
     //Horizontal Pager
-
-    Log.i("scrolled percentage", scrollPercentage.toString())
 
     HorizontalPager(
         state = pagerState, modifier = Modifier.fillMaxSize()
@@ -202,8 +228,6 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
 
     }
 
-
-    val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     //App Bar
 
@@ -232,7 +256,6 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
                 ) {
                     if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
                         AppBarVisibility = true
-                        Log.d("AppBar Visibility has changed", AppBarVisibility.toString())
                     }
                     FloatingActionButton(
                         modifier = Modifier
@@ -271,10 +294,7 @@ fun NotesOverview(modifier: Modifier, notesViewModel: NotesViewModel = viewModel
                     .pointerInput(Unit) {
                         detectTapGestures(onDoubleTap = {
                             AppBarVisibility = false
-                            Log.d(
-                                "AppBar Visibility long press", AppBarVisibility.toString()
-                            )
-                            Log.d("Long press", "True")
+
                         })
                     }) {
                     FloatingActionButton(
@@ -500,12 +520,9 @@ fun AddNoteScreen(modifier: Modifier, viewModel: NotesViewModel = viewModel()) {
                     onClick = {
                         //add a new note
                         if (newNote != "") {
-                            Firebase.analytics.logEvent("note_added", null)
                             viewModel.toggleVisibility()
                             notes += newNote
-                            Log.i("note added", viewModel.notes.toString())
                             //write data after newNote has been added to notes list
-                            viewModel.writeToNote(newNote)
                             newNote = ""
                         }
                     }) {
@@ -705,7 +722,6 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
     val notes = notesViewModel.notes
     val shortNote = notes.filter { it.length < maxCharacters }
     val longNote = notes.filter { it.length > maxCharacters }
-    Log.i("vartype", shortNote.toString())
     val ChunkedShortNotes = shortNote.chunked(2)
     var upcomingStickyHeaderVisibility = false
     var doneStickyHeaderVisibility = false
@@ -772,35 +788,7 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
                                     var BackgroundText by remember {
                                         mutableStateOf<String>("")
                                     }
-                                    //delete short note
-                                    if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
-                                        for ((index, value) in notesViewModel.notes.withIndex()) {
-                                            if (value == note) {
-                                                objectIndex = index
-                                            }
-                                        }
-                                        Log.i("delete::note", note)
-                                        notes.remove(note)
-                                        notesViewModel.deletedNotes.add(note)
-                                        Log.i(
-                                            "current list state <notes>", notes.toList().toString()
-                                        )
-                                        BackgroundText = "The note will be moved to trash"
-                                        notesViewModel.writeToDeletedNotes(string = note)
-                                        Log.i(
-                                            "index ${note}",
-                                            notesViewModel.notes.indexOf(note).toString()
-                                        )
-                                        notesViewModel.removeFromNote(
-                                            index = objectIndex
-                                        )
-                                    }
-                                    //pin short note
-                                    if (state.currentValue == SwipeToDismissBoxValue.StartToEnd) {
-                                        notesViewModel.importantNotes.add(note)
-                                        notes.remove(note)
-                                        BackgroundText = "The note will be mov  ed to important"
-                                    }
+
 
                                     SwipeToDismissBox(
                                         modifier = Modifier.weight(1f),
@@ -818,6 +806,22 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
                                             }
                                         },
                                     ) {
+                                        //delete short note
+                                        if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
+                                            notes.remove(note)
+                                            notesViewModel.deletedNotes.add(note)
+                                            BackgroundText = "The note will be moved to trash"
+
+                                        }
+
+                                        //pin short note
+                                        if (state.currentValue == SwipeToDismissBoxValue.StartToEnd) {
+                                            notesViewModel.importantNotes.add(note)
+                                            notes.remove(note)
+                                            BackgroundText = "The note will be mov  ed to important"
+                                        }
+
+
                                         NoteUi(
                                             modifier = modifier.weight(1f),
                                             CornerRadius = 15.dp,
@@ -845,13 +849,6 @@ fun Upcoming(modifier: Modifier, notesViewModel: NotesViewModel = viewModel()) {
                                 if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
                                     notesViewModel.deletedNotes.add(it)
                                     notesViewModel.notes.remove(it)
-                                    Log.i("executing", "swipe to delete")
-                                    notesViewModel.writeToDeletedNotes(string = it)
-                                    notesViewModel.removeFromNote(
-                                        index = notesViewModel.notes.indexOf(
-                                            it
-                                        )
-                                    )
                                 }
                                 //pin long note
                                 if (state.currentValue == SwipeToDismissBoxValue.StartToEnd) {
