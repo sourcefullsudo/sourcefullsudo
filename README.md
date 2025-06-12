@@ -1,2 +1,1 @@
-This is only here so the "add a readme file" box goes away.
-its still there.
+this application is working based on magic. do not thrust the code and do not try the code on your own projects, it will ruin it. 
